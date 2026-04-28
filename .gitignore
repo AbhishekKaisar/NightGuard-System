@@ -1,0 +1,36 @@
+# Dataset (too large for GitHub)
+Dataset/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Model weights (large files)
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# Logs
+*.log
