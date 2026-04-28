@@ -133,9 +133,16 @@ NightGuard-System/
 
 This project uses the **ExDark Dataset** — a collection of low-light images across 12 object categories. The dataset is not included in this repository due to size constraints.
 
-**Download:** [ExDark Dataset](https://github.com/cs-chan/Exclusively-Dark-Image-Dataset)
+**Download from Google Drive:** [ExDark Dataset](https://drive.google.com/drive/folders/15DIy444TvFkIGZi1AMNHUuYZcXZPtonQ?usp=sharing)
 
-After downloading, place it in a `Dataset/` folder at the project root.
+**Original Source:** [ExDark GitHub](https://github.com/cs-chan/Exclusively-Dark-Image-Dataset)
+
+After downloading, place it in a `Dataset/` folder at the project root:
+```
+Dataset/
+└── ExDark_Dataset/
+    └── People/        # 609 low-light images
+```
 
 ## Setup
 
