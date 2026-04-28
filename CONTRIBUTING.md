@@ -1,35 +1,39 @@
 # Contributing Guide — NightGuard System
 
-## For Team Members
+## Team Members & Assignments
+
+| Name | ID | Branch Name | Module Folder |
+|------|----|-------------|---------------|
+| Anindya Saha Ani | 2221105042 | `feature/enhancement` | `modules/enhancement/` |
+| Midhat Bin Shazzad | 2222560642 | `feature/face-detection` | `modules/face_detection/` |
+| Abhishek Kaisar Abhoy | 2221140042 | `feature/human-detection` | `modules/human_detection/` |
+| Maisha Tabassum | 2222728042 | `feature/vehicle-detection` | `modules/vehicle_detection/` |
+
+---
+
+## Step-by-Step Guide
 
 ### Step 1: Clone the repo
 ```bash
-git clone https://github.com/<username>/NightGuard-System.git
+git clone https://github.com/AbhishekKaisar/NightGuard-System.git
 cd NightGuard-System
 ```
 
 ### Step 2: Create your branch
+Use the branch name from the table above.
 ```bash
 git checkout -b feature/<your-module-name>
 ```
 
-Use one of these branch names:
-- `feature/enhancement` — Low-Light Enhancement Lead
-- `feature/face-detection` — Face Detection Lead
-- `feature/human-detection` — Human Detection Lead
-- `feature/vehicle-detection` — Vehicle Detection Lead
+**Example (for Anindya):**
+```bash
+git checkout -b feature/enhancement
+```
 
 ### Step 3: Add your work
-Place your files in the correct folder:
+Put your files in the correct folder (check the table above).
 
-| Module | Folder |
-|--------|--------|
-| Low-Light Enhancement | `modules/enhancement/` |
-| Face Detection | `modules/face_detection/` |
-| Human Detection | `modules/human_detection/` |
-| Vehicle Detection | `modules/vehicle_detection/` |
-
-Also copy your notebook (`.ipynb`) into the `notebooks/` folder.
+**Also** copy your Jupyter notebook (`.ipynb`) into the `notebooks/` folder.
 
 ### Step 4: Push and create a Pull Request
 ```bash
@@ -38,9 +42,11 @@ git commit -m "Add <module-name> module"
 git push origin feature/<your-module-name>
 ```
 
-Then go to GitHub and open a Pull Request to merge into `main`.
+Then go to GitHub → your branch → click **"Compare & pull request"** → submit.
 
-### Important Notes
-- Do NOT push datasets or model weight files (`.pt`, `.h5`) — they are in `.gitignore`
-- Keep your code inside your assigned module folder
-- Add a brief README.md in your module folder describing your approach
+---
+
+## Important Rules
+- Do NOT push datasets or model weight files (`.pt`, `.h5`) — they are ignored by `.gitignore`
+- Only add files inside your assigned module folder
+- Each module folder has a README — update it with your actual approach and results
