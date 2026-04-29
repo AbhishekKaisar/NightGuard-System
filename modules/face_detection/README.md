@@ -2,25 +2,28 @@
 
 **Lead:** Midhat Bin Shazzad (ID: 2222560642)
 
-## Description
-Facial detection and recognition pipeline for CCTV surveillance footage.
+Approach
 
-## Expected Approach
-- Haarcascade frontalface classifier
-- MTCNN (Multi-task Cascaded Convolutional Networks)
+Model: YOLOv8 with Face Detection Weightage.
 
-## What to Add Here
-- [ ] Your face detection code (`.py` or `.ipynb`)
-- [ ] Sample result images
-- [ ] Update this README with your actual approach and results
+Preprocessing:
 
-## How to Add Your Work
-```bash
-git checkout -b feature/face-detection
-# Add your files to this folder (modules/face_detection/)
-# Also copy your notebook to notebooks/
-git add .
-git commit -m "Add face detection module"
-git push origin feature/face-detection
-# Then open a Pull Request on GitHub
-```
+Fast Non-Local Means Denoising (light noise reduction)
+CLAHE (Contrast Limited Adaptive Histogram Equalization) for controlled contrast enhancement
+
+Enhancement Strategy:
+
+Mild low-light enhancement to preserve facial structure
+Avoided aggressive gamma correction to prevent feature distortion
+
+Detection Strategy:
+
+Dual input pipeline (original + enhanced image)
+Confidence-based smart selector to choose best detection output
+
+Key Results
+Condition	Detection Confidence
+Raw (low-light)	            ~0.45–0.65
+Enhanced (CLAHE + denoise)	~0.60–0.80
+Smart Selection Output	    Best of both
+
