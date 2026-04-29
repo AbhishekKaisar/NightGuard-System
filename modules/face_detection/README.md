@@ -22,8 +22,9 @@ Dual input pipeline (original + enhanced image)
 Confidence-based smart selector to choose best detection output
 
 Key Results
-Condition	Detection Confidence
-Raw (low-light)	            ~0.45–0.65
-Enhanced (CLAHE + denoise)	~0.60–0.80
-Smart Selection Output	    Best of both
 
+| Condition | Detection Confidence         |
+|-----------|------------------------------|
+| Raw (low-light)           | ~0.42 - 0.65 |
+| Enhanced(CLAHE + denoise) | ~0.70 - 0.90 |
+| Smart Selection Output    | Best of both |
