@@ -17,10 +17,10 @@ Raw CCTV Frame (Low-Light)
         ▼
 ┌──────────────────────────────┐
 │  Low-Light Enhancement       │  ← Anindya (Module 1)
-│  (CLAHE, Gamma, etc.)       │
-└──────────────┬───────────────┘
-               │ Enhanced Frame
-               ▼
+│  (Deep Learning Ensemble)    │
+└───────┬──────────────┘
+           │ Enhanced Frame
+           ▼
 ┌──────────────────────────────────────────────┐
 │            Parallel Detection                │
 │                                              │
@@ -42,7 +42,7 @@ Raw CCTV Frame (Low-Light)
 
 | Name | ID | Role | Module Folder | Branch Name |
 |------|----|------|---------------|-------------|
-| Anindya Saha Ani | 2221105042 | Low-Light Enhancement Lead | `modules/enhancement/` | `feature/enhancement` |
+| Anindya Saha Ani | 2221105042 | Low-Light Enhancement Lead | `modules/enhancement/` | `ani-dev` |
 | Midhat Bin Shazzad | 2222560642 | Face Detection Lead | `modules/face_detection/` | `feature/face-detection` |
 | Abhishek Kaisar Abhoy | 2221140042 | Human Detection Lead | `modules/human_detection/` | `feature/human-detection` |
 | Maisha Tabassum | 2222728042 | License Plate Detection | `modules/vehicle_detection/` | `feature/vehicle-detection` |
@@ -109,10 +109,11 @@ NightGuard-System/
 ## Modules
 
 ### 1. Low-Light Enhancement — Anindya Saha Ani
-- Contrast/brightness correction (alpha-beta adjustment)
-- CLAHE (Contrast Limited Adaptive Histogram Equalization)
-- Gamma correction with interactive parameter tuning
-- Noise reduction via Gaussian blur
+- **Deep Learning Ensemble:** Fuses four state-of-the-art frozen base models (Zero-DCE, KinD, RetinexNet, and a Restormer Vision Transformer).
+- **Meta-Learner:** Utilizes a U-Net Fusion Engine to dynamically learn spatial feature weighting from the concatenated outputs of the base models.
+- **Custom Dataloading:** Dual-dataset capability handling standard RGB (LOL dataset) and heavy RAW sensor data (SID dataset using `rawpy`).
+- **Memory-Safe Evaluation:** Implements both downscaling and Patch-based Inference to process high-resolution (24MP) DSLR/CCTV images without CUDA Out-of-Memory (OOM) errors.
+- **Deployment:** Features a local Gradio web interface (`app.py`) for real-time, drag-and-drop inference.
 
 ### 2. Face Detection — Midhat Bin Shazzad
 - Haarcascade frontalface classifier (classical approach)
@@ -144,6 +145,14 @@ Dataset/
     └── People/        # 609 low-light images
 ```
 
+### Low-Light Enhancement
+
+The system is engineered with dual-dataset capability to handle both standard synthetic low-light images and raw sensor data from real-world cameras.
+
+*   **LOL (Low-Light) Dataset:** Handles standard RGB paired images (low-light vs. normal-light), providing a baseline for general enhancement.
+*   **SID (See-in-the-Dark) Dataset:** Implements a custom dataloading pipeline using the `rawpy` library to directly ingest `.ARW` (Sony) and `.RAF` (Fuji) RAW sensor data. The dataloader explicitly maps multiple short-exposure (dark) captures of a scene to a single, high-quality long-exposure ground truth using unique Scene IDs, allowing the network to learn extreme low-light recovery directly from the sensor data.
+
+**Dataset:** [Google Drive Link.](https://drive.google.com/drive/folders/1pRGWh1ckUeqWEAiR02CNyIGJtGIrDiZG?usp=sharing)
 ## Setup
 
 ```bash
@@ -161,11 +170,12 @@ pip install -r requirements.txt
 
 ## Tech Stack
 
-- **Deep Learning:** Ultralytics YOLOv8, MTCNN
+- **Deep Learning:** PyTorch, Ultralytics YOLOv8, MTCNN, Restormer, RetinexNet
 - **Computer Vision:** OpenCV
-- **OCR:** EasyOCR
+- **Deployment:** Gradio
+- **Data Processing:** rawpy, EasyOCR
 - **Languages:** Python 3.8+
-- **Environment:** Google Colab / Local
+- **Environment:** Local RTX 40-Series GPU / Google Colab
 
 ## License
 

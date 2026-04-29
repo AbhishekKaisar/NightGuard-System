@@ -1,0 +1,74 @@
+# ==========================================
+# Low-Light Ensemble Configuration
+# ==========================================
+
+# 1. Dataset Paths
+data:
+  #Training
+  lol_train_low_light: "data/train/lol/low/"
+  lol_train_ground_truth: "data/train/lol/high/"
+
+  sid_train_low_light: "data/train/sid/short/"
+  sid_train_ground_truth: "data/train/sid/long/"
+  sid_train_list: "data/train/sid/Sony_train_list.txt"
+
+  #Validation
+  val_low_light: "data/val/lol/low/"
+  val_ground_truth: "data/val/lol/high/"
+
+  sid_val_low_light: "data/val/sid/short/"
+  sid_val_ground_truth: "data/val/sid/long/"
+  sid_val_list: "data/val/sid/Sony_val_list.txt"
+
+  #Testing
+  test_low_light: "data/test/lol/low/"
+  test_ground_truth: "data/test/lol/high/"
+
+  sid_test_low_light: "data/test/sid/short/"
+  sid_test_ground_truth: "data/test/sid/long/"
+  sid_test_list: "data/test/sid/Sony_test_list.txt"
+
+# 2. Weight Checkpoint Paths
+weights:
+  # Where to find the downloaded weights for the frozen base models
+  zero_dce: "weights/pretrained_bases/zero_dce.pth"
+
+  # KinD uses separate weights for each sub-network
+  kind_decom: "weights/pretrained_bases/decom_net.pth"
+  kind_restore: "weights/pretrained_bases/restore_net.pth"
+  kind_illum: "weights/pretrained_bases/illum_net.pth"
+
+  # RetinexNet uses separate weights for each sub-network
+  retinex_decom: "weights/pretrained_bases/decom.tar"
+  retinex_relight: "weights/pretrained_bases/relight.tar"
+
+  restormer: "weights/pretrained_bases/restormer.pth"
+
+  # Where to save the U-Net after training
+  save_dir: "weights/best_ensemble/"
+  save_name: "unet_fusion_best.pth"
+
+# 3. Training Hyperparameters
+training:
+  epochs: 100
+  batch_size: 4             # Reduce to 4 or 2 if your GPU runs out of memory (OOM)
+  learning_rate: 0.0001     # 1e-4 is standard for Adam optimizer in U-Net
+  patch_size: 256           # The size of the random crops for training
+  num_workers: 2            # Number of CPU threads loading images (set to 0 on Windows if you get errors)
+  save_frequency: 10        # Save a sample image every 10 epochs
+  seed: 42                  # Reproducible training runs
+
+# 4. Loss Function Weights
+loss:
+  l1_weight: 1.0            # Main structural loss
+  perceptual_weight: 0.1    # VGG feature loss to ensure it looks natural to humans
+
+base_training:
+  model: "zero_dce"
+  epochs: 20
+  learning_rate: 0.0001
+  save_path: "weights/pretrained_bases/zero_dce_finetuned.pth"
+
+# 5. Hardware
+hardware:
+  device: "cuda"            # Change to "cpu" or "mps" (for Mac) if you don't have an Nvidia GPU
