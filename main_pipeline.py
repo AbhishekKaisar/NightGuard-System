@@ -70,9 +70,7 @@ def detect_faces(img, conf=0.3):
 
 def detect_humans(img, conf=0.4):
     """Detect humans using YOLOv8n (COCO class 0 = person)."""
-    # Gaussian blur for noise suppression
     blurred = cv2.GaussianBlur(img, (5, 5), 0)
-
     model = YOLO("yolov8n.pt")
     results = model(blurred, classes=[0], conf=conf, verbose=False)
 
