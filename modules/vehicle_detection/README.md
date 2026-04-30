@@ -1,5 +1,5 @@
 ## Vehicle Detection Module
-**Lead:** Maisha Tabassum | ID: YOUR_ID
+**Lead:** Maisha Tabassum (ID: 2222728042)
 
 ### Approach
 - Model: YOLOv8n (fine-tuned) + RT-DETR (fine-tuned) on ExDark dataset
