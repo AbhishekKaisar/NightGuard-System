@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import os
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -50,8 +51,13 @@ def enhance_image(img):
 # ─── Detection Functions ─────────────────────────────────────────────────────
 
 def detect_faces(img, conf=0.3):
-    """Detect faces using YOLOv8n-face model."""
-    model = YOLO("yolov8n-face.pt")
+    """Detect faces using YOLOv8n-face model (falls back to yolov8n person class)."""
+    face_weight = os.path.join(os.path.dirname(__file__), "modules", "face_detection", "yolov8n-face.pt")
+    if os.path.exists(face_weight):
+        model = YOLO(face_weight)
+    else:
+        print("      (yolov8n-face.pt not found, using yolov8n person detection as fallback)")
+        model = YOLO("yolov8n.pt")
     results = model(img, conf=conf, verbose=False)
 
     detections = []
