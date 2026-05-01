@@ -83,26 +83,42 @@ def detect_humans(img, conf=0.4):
 
 
 def detect_vehicles(img, conf=0.4):
-    """Detect vehicles using fine-tuned YOLOv8n if available, else pretrained."""
+    """Detect vehicles using both fine-tuned and pretrained, pick best results."""
+    img_h, img_w = img.shape[:2]
+    img_area = img_h * img_w
+
+    def _run_model(model, results, names):
+        dets = []
+        for box in results[0].boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            if (x2 - x1) * (y2 - y1) > img_area * 0.6:
+                continue
+            score = float(box.conf[0])
+            cls_id = int(box.cls[0])
+            label = names.get(cls_id, "Vehicle")
+            dets.append({"bbox": (x1, y1, x2, y2), "conf": score, "label": label})
+        return dets
+
+    # Try pretrained YOLOv8n (reliable on general images)
+    vehicle_classes = [2, 3, 5, 7]
+    pretrained_names = {2: "Car", 3: "Motorcycle", 5: "Bus", 7: "Truck"}
+    model_pre = YOLO("yolov8n.pt")
+    results_pre = model_pre(img, classes=vehicle_classes, conf=conf, verbose=False)
+    dets_pre = _run_model(model_pre, results_pre, pretrained_names)
+
+    # Try fine-tuned model if available
     finetuned = os.path.join(os.path.dirname(__file__), "maisha_weights", "yolo_finetune_exp2_best.pt")
     if os.path.exists(finetuned):
-        model = YOLO(finetuned)
-        results = model(img, conf=conf, verbose=False)
-        vehicle_names = {0: "Car", 1: "Bus", 2: "Bicycle", 3: "Motorcycle"}
-    else:
-        vehicle_classes = [2, 3, 5, 7]  # car, motorcycle, bus, truck
-        vehicle_names = {2: "Car", 3: "Motorcycle", 5: "Bus", 7: "Truck"}
-        model = YOLO("yolov8n.pt")
-        results = model(img, classes=vehicle_classes, conf=conf, verbose=False)
+        finetuned_names = {0: "Car", 1: "Bus", 2: "Bicycle", 3: "Motorcycle"}
+        model_ft = YOLO(finetuned)
+        results_ft = model_ft(img, conf=conf, verbose=False)
+        dets_ft = _run_model(model_ft, results_ft, finetuned_names)
 
-    detections = []
-    for box in results[0].boxes:
-        x1, y1, x2, y2 = map(int, box.xyxy[0])
-        score = float(box.conf[0])
-        cls_id = int(box.cls[0])
-        label = vehicle_names.get(cls_id, "Vehicle")
-        detections.append({"bbox": (x1, y1, x2, y2), "conf": score, "label": label})
-    return detections
+        # Pick whichever found more vehicles (fine-tuned catches harder cases)
+        if len(dets_ft) > len(dets_pre):
+            return dets_ft
+
+    return dets_pre
 
 
 # ─── Visualization ───────────────────────────────────────────────────────────
