@@ -83,12 +83,17 @@ def detect_humans(img, conf=0.4):
 
 
 def detect_vehicles(img, conf=0.4):
-    """Detect vehicles using YOLOv8n (COCO classes: car, motorcycle, bus, truck)."""
-    vehicle_classes = [2, 3, 5, 7]  # car, motorcycle, bus, truck
-    vehicle_names = {2: "Car", 3: "Motorcycle", 5: "Bus", 7: "Truck"}
-
-    model = YOLO("yolov8n.pt")
-    results = model(img, classes=vehicle_classes, conf=conf, verbose=False)
+    """Detect vehicles using fine-tuned YOLOv8n if available, else pretrained."""
+    finetuned = os.path.join(os.path.dirname(__file__), "maisha_weights", "yolo_finetune_exp2_best.pt")
+    if os.path.exists(finetuned):
+        model = YOLO(finetuned)
+        results = model(img, conf=conf, verbose=False)
+        vehicle_names = {0: "Car", 1: "Bus", 2: "Bicycle", 3: "Motorcycle"}
+    else:
+        vehicle_classes = [2, 3, 5, 7]  # car, motorcycle, bus, truck
+        vehicle_names = {2: "Car", 3: "Motorcycle", 5: "Bus", 7: "Truck"}
+        model = YOLO("yolov8n.pt")
+        results = model(img, classes=vehicle_classes, conf=conf, verbose=False)
 
     detections = []
     for box in results[0].boxes:
