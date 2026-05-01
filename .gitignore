@@ -32,5 +32,9 @@ Thumbs.db
 *.onnx
 *.h5
 
+# Allow specific weights needed for the pipeline
+!maisha_weights/*.pt
+!modules/face_detection/yolov8n-face.pt
+
 # Logs
 *.log
