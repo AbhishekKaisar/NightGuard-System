@@ -1,6 +1,7 @@
 # Dataset (too large for GitHub)
 Dataset/
-
+data/
+weights/
 # Python
 __pycache__/
 *.py[cod]
