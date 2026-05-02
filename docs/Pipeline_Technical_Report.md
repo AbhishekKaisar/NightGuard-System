@@ -22,9 +22,10 @@ Standard object detection models (YOLO, RT-DETR, etc.) are trained on well-lit i
                     ┌──────────▼──────────┐
                     │  STAGE 1: ENHANCE   │
                     │                     │
-                    │  1. Denoise         │
-                    │  2. CLAHE (LAB)     │
-                    │  3. Gamma Correct   │
+                    │ Deep Learning Ens.  │
+                    │ (Zero-DCE, KinD,    │
+                    │ RetinexNet,         │
+                    │ Restormer) + U-Net  │
                     └──────────┬──────────┘
                                │
                        Enhanced Frame
@@ -73,51 +74,7 @@ Low-light CCTV images suffer from:
 
 ### 3.2 Approach (Integrated Pipeline)
 
-The `main_pipeline.py` uses a lightweight 3-step enhancement:
-
-#### Step 1: Fast Non-Local Means Denoising
-
-```python
-denoised = cv2.fastNlMeansDenoisingColored(img, None, 3, 3, 7, 21)
-```
-
-- Compares small patches across the image to distinguish real detail from noise
-- Parameters `(h=3, hColor=3)` apply mild denoising to avoid over-smoothing
-- Preserves edges while suppressing pixel-level noise
-
-#### Step 2: CLAHE (Contrast Limited Adaptive Histogram Equalization)
-
-```python
-lab = cv2.cvtColor(denoised, cv2.COLOR_BGR2LAB)
-l, a, b = cv2.split(lab)
-clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-l_enhanced = clahe.apply(l)
-enhanced = cv2.cvtColor(cv2.merge((l_enhanced, a, b)), cv2.COLOR_LAB2BGR)
-```
-
-- Converts to **LAB color space** — separates lightness (L) from color (A, B)
-- Applies CLAHE **only on the L channel** — enhances brightness without distorting colors
-- `clipLimit=2.0` prevents over-amplification of noise in very dark regions
-- `tileGridSize=(8, 8)` divides the image into 64 tiles for locally adaptive enhancement
-- This is the single most impactful step — it makes dark regions visible while keeping bright areas stable
-
-#### Step 3: Gamma Correction
-
-```python
-gamma = 0.7
-inv_gamma = 1.0 / gamma
-table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in range(256)]).astype("uint8")
-enhanced = cv2.LUT(enhanced, table)
-```
-
-- Mathematical formula: `output = (input / 255)^(1/gamma) * 255`
-- With `gamma = 0.7`, the exponent becomes `1/0.7 = 1.43`
-- This non-linearly brightens dark pixels more than bright pixels
-- Uses a **lookup table (LUT)** for O(1) per-pixel transformation (very fast)
-
-### 3.3 Advanced Enhancement (Standalone Module)
-
-Anindya's full module (`modules/enhancement/`) implements a **deep learning ensemble**:
+The `main_pipeline.py` integrates a **Deep Learning Ensemble** to perform low-light enhancement. This approach uses multiple state-of-the-art enhancement models and a fusion network to selectively combine their strengths.
 
 | Base Model | Strength |
 |-----------|----------|
@@ -127,6 +84,15 @@ Anindya's full module (`modules/enhancement/`) implements a **deep learning ense
 | Restormer | Vision Transformer for global context and color constancy |
 
 These four frozen models each produce a 3-channel RGB output. The outputs are concatenated into a **12-channel tensor** and fed into a **U-Net Fusion Engine** that learns pixel-by-pixel which model provides the best restoration.
+
+To handle arbitrary high-resolution images efficiently without exceeding GPU memory, the pipeline uses **patch-based inference**:
+- The image is divided into `512x512` overlapping patches (e.g., 32-pixel overlap).
+- Each patch is independently enhanced by the ensemble.
+- The enhanced patches are blended back together using a linearly decaying weight map at the borders to prevent visible seams.
+
+### 3.3 Previous Classical Approach
+
+During prototyping, a lightweight 3-step classical enhancement (Fast Non-Local Means Denoising, CLAHE in LAB color space, and Gamma Correction) was used. While fast and computationally cheap, it often resulted in unnatural colors and amplified noise compared to the current Deep Learning Ensemble.
 
 ### 3.4 Impact on Detection
 
@@ -178,7 +144,7 @@ Enhanced Image ──→ detect() ──→ enh_dets (confidence scores)
 | Condition | Confidence Range |
 |-----------|-----------------|
 | Raw (low-light) | 0.42 - 0.65 |
-| Enhanced (CLAHE + denoise) | 0.70 - 0.90 |
+| Enhanced (Deep Learning Ensemble) | 0.70 - 0.90 |
 
 ---
 
@@ -230,15 +196,15 @@ The full module (`modules/human_detection/`) also includes:
 | Slightly lower confidence (0.73) | Higher confidence but wrong detections |
 | Reliable across all test images | Unreliable on complex scenes |
 
-The enhancement step (CLAHE + gamma) already handles noise reduction. The Gaussian blur adds an extra layer of protection specifically for human detection, where false positives (detecting a car window as a person) are worse than missed detections.
+While the enhancement step (Deep Learning Ensemble) handles significant noise reduction and restores details, Gaussian blur adds an extra layer of protection specifically for human detection, where false positives (e.g., detecting a car window reflection as a person) are worse than missed detections.
 
 ### 5.5 Results
 
 | Condition | Confidence |
 |-----------|-----------|
 | Raw (low-light) | 0.41 |
-| Enhanced (gamma corrected) | 0.77 |
-| Enhanced (CLAHE + gamma + blur) | 0.73 - 0.82 |
+| Enhanced (Deep Learning Ensemble without blur) | 0.77 |
+| Enhanced (Deep Learning Ensemble + blur) | 0.73 - 0.82 |
 
 ---
 
@@ -400,13 +366,13 @@ Each bounding box includes:
 
 | Component | Technology |
 |-----------|-----------|
-| Enhancement | OpenCV (CLAHE, Gamma, Denoising) |
+| Enhancement | PyTorch (Deep Learning Ensemble: Zero-DCE, KinD, RetinexNet, Restormer, U-Net) |
 | Detection Models | Ultralytics YOLOv8 Nano, RT-DETR |
 | Deep Learning Framework | PyTorch |
-| Advanced Enhancement | Zero-DCE, KinD, RetinexNet, Restormer, U-Net |
+| Legacy Enhancement | OpenCV (CLAHE, Gamma, Denoising) |
 | Deployment | Gradio (web interface) |
 | Language | Python 3.8+ |
-| Hardware | CPU (no GPU required for inference) |
+| Hardware | CPU (no GPU required for inference, but GPU recommended for Ensemble) |
 
 ---
 
@@ -414,7 +380,7 @@ Each bounding box includes:
 
 | Member | ID | Module | Key Contribution |
 |--------|-----|--------|-----------------|
-| Anindya Saha Ani | 2221105042 | Enhancement | Deep learning ensemble (4 models + U-Net fusion), CLAHE pipeline |
+| Anindya Saha Ani | 2221105042 | Enhancement | Deep learning ensemble (4 models + U-Net fusion), Legacy CLAHE pipeline |
 | Midhat Bin Shazzad | 2222560642 | Face Detection | YOLOv8n-face with dual-input smart selector |
 | Abhishek Kaisar Abhoy | 2221140042 | Human Detection | YOLOv8n with Gaussian blur preprocessing, pipeline integration |
 | Maisha Tabassum | 2222728042 | Vehicle Detection | Fine-tuned YOLOv8n + RT-DETR on ExDark dataset |
