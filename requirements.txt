@@ -12,3 +12,6 @@ PyYAML>=6.0.3
 numpy>=2.4.4
 rawpy>=0.26.1
 einops>=0.8.2
+onnxruntime
+onnx
+onnxconverter-common

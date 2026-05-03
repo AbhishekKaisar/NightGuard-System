@@ -2,6 +2,7 @@
 Dataset/
 data/
 weights/
+onnx_weights/
 # Python
 __pycache__/
 *.py[cod]
