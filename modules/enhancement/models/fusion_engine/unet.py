@@ -6,7 +6,6 @@ class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=4):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
         
         self.fc = nn.Sequential(
             nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False),
@@ -17,7 +16,8 @@ class ChannelAttention(nn.Module):
 
     def forward(self, x):
         avg_out = self.fc(self.avg_pool(x))
-        max_out = self.fc(self.max_pool(x))
+        max_pool_out = torch.max(torch.max(x, dim=3, keepdim=True)[0], dim=2, keepdim=True)[0]
+        max_out = self.fc(max_pool_out)
         out = avg_out + max_out
         return self.sigmoid(out)
 

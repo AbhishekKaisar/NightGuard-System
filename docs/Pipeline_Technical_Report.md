@@ -86,9 +86,14 @@ The `main_pipeline.py` integrates a **Deep Learning Ensemble** to perform low-li
 These four frozen models each produce a 3-channel RGB output. The outputs are concatenated into a **12-channel tensor** and fed into a **U-Net Fusion Engine** that learns pixel-by-pixel which model provides the best restoration.
 
 To handle arbitrary high-resolution images efficiently without exceeding GPU memory, the pipeline uses **patch-based inference**:
-- The image is divided into `512x512` overlapping patches (e.g., 32-pixel overlap).
+- The image is divided into `256x256` overlapping patches (with 32-pixel overlap).
 - Each patch is independently enhanced by the ensemble.
 - The enhanced patches are blended back together using a linearly decaying weight map at the borders to prevent visible seams.
+- Images exceeding 1080 pixels in max dimension are proportionally downscaled prior to processing.
+
+**Optimized Execution & Safety Checks:**
+- **ONNX FP16 Fallback:** If a CUDA-enabled GPU is unavailable, the pipeline falls back to an exported ONNX Runtime FP16 version of the ensemble, providing significantly faster CPU inference.
+- **Exposure Safety Check:** Extremely dark scenes captured in IR or under direct light can be over-exposed by the DL ensemble. If the output mean grayscale intensity exceeds a threshold (e.g., >200), the pipeline automatically discards the result and falls back to a fast, classical CLAHE enhancement.
 
 ### 3.3 Previous Classical Approach
 
@@ -366,7 +371,7 @@ Each bounding box includes:
 
 | Component | Technology |
 |-----------|-----------|
-| Enhancement | PyTorch (Deep Learning Ensemble: Zero-DCE, KinD, RetinexNet, Restormer, U-Net) |
+| Enhancement | PyTorch (Deep Learning Ensemble: Zero-DCE, KinD, RetinexNet, Restormer, U-Net), ONNX Runtime (CPU fallback) |
 | Detection Models | Ultralytics YOLOv8 Nano, RT-DETR |
 | Deep Learning Framework | PyTorch |
 | Legacy Enhancement | OpenCV (CLAHE, Gamma, Denoising) |

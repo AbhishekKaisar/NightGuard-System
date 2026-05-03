@@ -70,6 +70,8 @@ Or open `notebooks/NightGuard_Demo.ipynb` in Google Colab for an interactive dem
 ```
 NightGuard-System/
 ├── main_pipeline.py        # Integrated detection pipeline
+├── export_onnx.py          # Script to export PyTorch ensemble to ONNX
+├── tune_pipeline.py        # Pipeline hyperparameter tuning
 ├── modules/
 │   ├── enhancement/        # Anindya — Deep learning ensemble
 │   ├── face_detection/     # Midhat — YOLOv8n-face detection
@@ -84,6 +86,7 @@ NightGuard-System/
 │   └── vehicle_detection_first_report.ipynb
 ├── samples/                # Sample test images
 ├── docs/                   # Project documentation & reports
+├── onnx_weights/           # Exported ONNX models for fast CPU inference
 ├── results/                # Output images and evaluation metrics
 └── requirements.txt        # Python dependencies
 ```
@@ -93,8 +96,10 @@ NightGuard-System/
 ### 1. Low-Light Enhancement — Anindya Saha Ani
 - **Deep Learning Ensemble:** Fuses four frozen base models (Zero-DCE, KinD, RetinexNet, Restormer Vision Transformer)
 - **Meta-Learner:** U-Net Fusion Engine for dynamic spatial feature weighting
+- **Optimized Inference:** PyTorch GPU inference with ONNX Runtime FP16 fallback for fast CPU computation
+- **Exposure Safety Check:** Fallback to CLAHE enhancement if the deep learning model over-exposes the image
 - **Custom Dataloading:** Dual-dataset capability (LOL dataset + SID RAW sensor data)
-- **Memory-Safe Evaluation:** Downscaling and patch-based inference for high-resolution images
+- **Memory-Safe Evaluation:** Downscaling (max dimension 1080) and 256x256 patch-based inference for high-resolution images
 - **Deployment:** Gradio web interface (`app.py`) for drag-and-drop inference
 
 ### 2. Face Detection — Midhat Bin Shazzad
@@ -105,7 +110,7 @@ NightGuard-System/
 
 ### 3. Human Detection — Abhishek Kaisar Abhoy
 - YOLOv8n pretrained model (person class)
-- Gaussian blur preprocessing for noise suppression
+- Gaussian blur (3x3 kernel) preprocessing for noise suppression
 - Sobel edge detection for structural analysis
 - Interactive gamma correction slider for parameter tuning
 - Confidence improvement: 0.41 (raw) → 0.77 (enhanced)
@@ -160,7 +165,7 @@ pip install -r modules/enhancement/requirements.txt
 
 ## Tech Stack
 
-- **Deep Learning:** PyTorch, Ultralytics YOLOv8, RT-DETR, Restormer, RetinexNet, Zero-DCE, KinD
+- **Deep Learning:** PyTorch, Ultralytics YOLOv8, RT-DETR, Restormer, RetinexNet, Zero-DCE, KinD, ONNX Runtime
 - **Computer Vision:** OpenCV
 - **Deployment:** Gradio
 - **Data Processing:** rawpy, NumPy, Pandas
@@ -170,3 +175,6 @@ pip install -r modules/enhancement/requirements.txt
 ## License
 
 This project is developed for academic purposes as part of the CSE468 course at North South University.
+
+rposes as part of the CSE468 course at North South University.
+

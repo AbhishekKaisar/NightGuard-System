@@ -229,9 +229,9 @@ def enhance_image_clahe(img):
 - [ ] Export ensemble to ONNX for faster CPU inference
 - [ ] Add downscale option for large images (max 640px)
 - [ ] Test on all sample images: `x1080.jpg`, `sample-face.png`, `cctvsample.png`, `2015_06281.jpg`
-- [ ] Push changes on a new branch and open a PR
 
-**Branch name:** `fix/enhancement-fallback`
+
+
 
 **Test command:**
 ```bash

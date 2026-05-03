@@ -21,6 +21,7 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from ultralytics import YOLO
+import onnxruntime as ort
 
 from modules.enhancement.models.ensemble import LowLightEnsemble, load_base_weights
 from modules.enhancement.models.base_models import ZeroDCE, KinD, RetinexNet, Restormer
@@ -30,6 +31,15 @@ from modules.enhancement.utils.helpers import _resolve_path, _resolve_weight_pat
 # ─── Initialization ────────────────────────────────────────────────────────────
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Load ONNX session globally for CPU inference
+onnx_session = None
+if not torch.cuda.is_available():
+    onnx_path = "onnx_weights/ensemble_fp16.onnx"
+    if os.path.exists(onnx_path):
+        onnx_session = ort.InferenceSession(onnx_path)
+    else:
+        print(f"Warning: ONNX model not found at {onnx_path}. Run export_onnx.py first.")
 
 # 1. Enhancement Ensemble
 dce = ZeroDCE()
@@ -125,6 +135,96 @@ def enhance_image_with_ensemble(cv2_image, tile_size=256, tile_overlap=32):
     output_bgr = cv2.cvtColor(output_np, cv2.COLOR_RGB2BGR)
     
     return output_bgr
+
+
+def enhance_image_clahe(img):
+    """Lightweight CLAHE enhancement (fast, no GPU needed)."""
+    denoised = cv2.fastNlMeansDenoisingColored(img, None, 3, 3, 7, 21)
+    lab = cv2.cvtColor(denoised, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    l_enhanced = clahe.apply(l)
+    enhanced = cv2.cvtColor(cv2.merge((l_enhanced, a, b)), cv2.COLOR_LAB2BGR)
+    gamma = 0.7
+    table = np.array([((i / 255.0) ** (1.0 / gamma)) * 255 for i in range(256)]).astype("uint8")
+    return cv2.LUT(enhanced, table)
+
+def run_onnx_inference(cv2_image, session, tile_size=256, tile_overlap=32):
+    """Enhances a low-light image using the ONNX model with patch-based inference."""
+    color_converted = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB)
+    pil_img = Image.fromarray(color_converted)
+    
+    transform = transforms.ToTensor()
+    img_tensor = transform(pil_img).unsqueeze(0).numpy().astype(np.float16)
+    
+    b, c, h, w = img_tensor.shape
+    if h <= tile_size and w <= tile_size:
+        inputs = {session.get_inputs()[0].name: img_tensor}
+        output_tensor = session.run(None, inputs)[0]
+    else:
+        stride = tile_size - tile_overlap
+        h_idx_list = list(range(0, h - tile_size, stride)) + [max(0, h - tile_size)]
+        w_idx_list = list(range(0, w - tile_size, stride)) + [max(0, w - tile_size)]
+        
+        # Remove duplicates
+        h_idx_list = list(dict.fromkeys(h_idx_list))
+        w_idx_list = list(dict.fromkeys(w_idx_list))
+        
+        out_tensor = np.zeros_like(img_tensor)
+        weight_tensor = np.zeros_like(img_tensor)
+        
+        for h_idx in h_idx_list:
+            for w_idx in w_idx_list:
+                in_patch = img_tensor[..., h_idx:h_idx+tile_size, w_idx:w_idx+tile_size]
+                
+                inputs = {session.get_inputs()[0].name: in_patch}
+                out_patch = session.run(None, inputs)[0]
+                
+                patch_h, patch_w = out_patch.shape[-2:]
+                
+                y_ramp = np.minimum(np.arange(patch_h), np.arange(patch_h - 1, -1, -1))
+                x_ramp = np.minimum(np.arange(patch_w), np.arange(patch_w - 1, -1, -1))
+                weight_y = np.clip(y_ramp + 1, a_min=None, a_max=tile_overlap) / tile_overlap
+                weight_x = np.clip(x_ramp + 1, a_min=None, a_max=tile_overlap) / tile_overlap
+                weight = weight_y[:, None] * weight_x[None, :]
+                weight = weight[None, None, :, :]
+                
+                out_tensor[..., h_idx:h_idx+patch_h, w_idx:w_idx+patch_w] += out_patch * weight
+                weight_tensor[..., h_idx:h_idx+patch_h, w_idx:w_idx+patch_w] += weight
+        
+        output_tensor = out_tensor / weight_tensor
+        
+    output_tensor = np.clip(np.squeeze(output_tensor, axis=0), 0, 1)
+    output_np = np.transpose(output_tensor, (1, 2, 0))
+    output_np = (output_np * 255.0).astype(np.uint8)
+    output_bgr = cv2.cvtColor(output_np, cv2.COLOR_RGB2BGR)
+    
+    return output_bgr
+
+def smart_enhance(img):
+    """
+    Routes enhancement based on hardware capabilities and checks for over-exposure.
+    """
+    # 1. Hardware Routing
+    if torch.cuda.is_available():
+        # GPU: Run standard PyTorch ensemble (existing logic)
+        enhanced = enhance_image_with_ensemble(img)
+    else:
+        # CPU: Run ONNX FP16 version for fast computation
+        if onnx_session is not None:
+            print("  [Notice] Running optimized ONNX FP16 Ensemble.")
+            enhanced = run_onnx_inference(img, onnx_session)
+        else:
+            print("  [Notice] ONNX session not available. Falling back to PyTorch CPU.")
+            enhanced = enhance_image_with_ensemble(img)
+    
+    # 2. Exposure Safety Check (Grayscale / IR Over-exposure)
+    gray = cv2.cvtColor(enhanced, cv2.COLOR_BGR2GRAY)
+    if gray.mean() > 200:
+        print("  [Notice] DL Ensemble over-exposed the image. Falling back to CLAHE.")
+        return enhance_image_clahe(img)
+        
+    return enhanced
 
 
 # ─── Detection Functions ─────────────────────────────────────────────────────
@@ -241,7 +341,11 @@ def process_single_image(input_path, output_path=None, show=False):
 
     # Step 1: Enhance
     print("\n[1/4] Enhancing low-light image...")
-    enhanced = enhance_image_with_ensemble(img)
+    h, w = img.shape[:2]
+    if max(h, w) > 1080:
+        scale = 1080 / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)))
+    enhanced = smart_enhance(img)
 
     # Step 2: Detect faces
     print("[2/4] Detecting faces...")
