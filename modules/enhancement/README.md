@@ -51,7 +51,10 @@ Evaluating high-resolution DSLR or modern CCTV images (often exceeding 4K resolu
 This script utilizes dynamic bilinear downscaling and interpolation. If an image exceeds 1000 pixels in either dimension, it is proportionally downscaled before passing through the network, allowing for rapid calculation of PSNR and SSIM benchmarks across large datasets without crashing the GPU.
 
 ### 2. `evaluate_patch.py` (Full Resolution Preservation)
-For deployment scenarios where maintaining the original ultra-high resolution is critical, this script employs patch-based inference. It slices the high-resolution input into overlapping patches (e.g., 512x512 tiles with 256-pixel overlap), predicts each patch sequentially to strictly manage VRAM, and then applies a bilinear weight map to seamlessly stitch the patches back together. This prevents visible boundary seams or grid artifacts, evaluating the final metrics on the true, full-resolution output.
+For deployment scenarios where maintaining the original ultra-high resolution is critical, this script employs patch-based inference. It slices the high-resolution input into overlapping patches (e.g., 256x256 tiles with 32-pixel overlap), predicts each patch sequentially to strictly manage VRAM, and then applies a bilinear weight map to seamlessly stitch the patches back together. This prevents visible boundary seams or grid artifacts, evaluating the final metrics on the true, full-resolution output.
+
+### 3. ONNX CPU Optimization
+For fast CPU inference during deployment, the ensemble can be exported to FP16 ONNX format using the provided `export_onnx.py` script. The integrated pipeline utilizes `onnxruntime` to efficiently process patches using CPU resources if a CUDA GPU is not available.
 
 ---
 
