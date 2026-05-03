@@ -41,36 +41,38 @@ if not torch.cuda.is_available():
     else:
         print(f"Warning: ONNX model not found at {onnx_path}. Run export_onnx.py first.")
 
-# 1. Enhancement Ensemble
-dce = ZeroDCE()
-kind = KinD()
-retinex = RetinexNet()
-restormer = Restormer(LayerNorm_type='BiasFree')
+# 1. Enhancement Ensemble (skip heavy PyTorch loading if ONNX is available on CPU)
+ensemble = None
+if onnx_session is None:
+    dce = ZeroDCE()
+    kind = KinD()
+    retinex = RetinexNet()
+    restormer = Restormer(LayerNorm_type='BiasFree')
 
-ensemble = LowLightEnsemble(dce, kind, retinex, restormer).to(device)
+    ensemble = LowLightEnsemble(dce, kind, retinex, restormer).to(device)
 
-project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "enhancement")
-config_path = os.path.join(project_root, "configs", "config.yaml")
+    project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "enhancement")
+    config_path = os.path.join(project_root, "configs", "config.yaml")
 
-if os.path.exists(config_path):
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
-    _resolve_weight_paths(cfg, project_root)
-    load_base_weights(ensemble, cfg, device)
-    
-    fusion_weight_path = os.path.join(
-        _resolve_path(project_root, cfg['weights']['save_dir']),
-        cfg['weights']['save_name']
-    )
-    
-    if os.path.exists(fusion_weight_path):
-        ensemble.fusion_unet.load_state_dict(torch.load(fusion_weight_path, map_location=device))
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+        _resolve_weight_paths(cfg, project_root)
+        load_base_weights(ensemble, cfg, device)
+
+        fusion_weight_path = os.path.join(
+            _resolve_path(project_root, cfg['weights']['save_dir']),
+            cfg['weights']['save_name']
+        )
+
+        if os.path.exists(fusion_weight_path):
+            ensemble.fusion_unet.load_state_dict(torch.load(fusion_weight_path, map_location=device))
+        else:
+            print(f"Warning: Could not find fusion weights at {fusion_weight_path}")
     else:
-        print(f"Warning: Could not find fusion weights at {fusion_weight_path}")
-else:
-    print(f"Warning: Could not find config at {config_path}")
+        print(f"Warning: Could not find config at {config_path}")
 
-ensemble.eval()
+    ensemble.eval()
 
 # 2. YOLO Detection Models
 print("Loading YOLO detection models...")
