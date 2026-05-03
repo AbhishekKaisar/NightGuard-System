@@ -17,7 +17,7 @@ Raw CCTV Frame (Low-Light)
         ▼
 ┌──────────────────────────────┐
 │  Low-Light Enhancement       │  ← Anindya (Module 1)
-│  (Deep Learning Ensemble)    │
+│  (DL Ensemble / CLAHE)      │
 └──────────────┬───────────────┘
                │ Enhanced Frame
                ▼
@@ -41,13 +41,17 @@ Raw CCTV Frame (Low-Light)
 ## Quick Start
 
 ```bash
-# Clone and install
+# 1. Clone and install
 git clone https://github.com/AbhishekKaisar/NightGuard-System.git
 cd NightGuard-System
 pip install -r requirements.txt
 
-# Run the full pipeline on a sample image
-python main_pipeline.py --input samples/2015_06281.jpg --output results/output.jpg
+# 2. Download required weights (not included in repo due to size)
+#    - onnx_weights/    → from Google Drive (see Weights section below)
+#    - maisha_weights/  → included in repo
+
+# 3. Run the full pipeline on a sample image
+python3 main_pipeline.py --input samples/x1080.jpg --output results/output.jpg
 ```
 
 Or open `notebooks/NightGuard_Demo.ipynb` in Google Colab for an interactive demo.
@@ -84,10 +88,11 @@ NightGuard-System/
 │   ├── vehicle_detection_yolo_experiments.ipynb
 │   ├── vehicle_detection_RT_DETR.ipynb
 │   └── vehicle_detection_first_report.ipynb
+├── maisha_weights/         # Fine-tuned vehicle detection weights (in repo)
+├── onnx_weights/           # ONNX models for fast CPU inference (download separately)
 ├── samples/                # Sample test images
-├── docs/                   # Project documentation & reports
-├── onnx_weights/           # Exported ONNX models for fast CPU inference
 ├── results/                # Output images and evaluation metrics
+├── docs/                   # Project documentation & reports
 └── requirements.txt        # Python dependencies
 ```
 
@@ -96,10 +101,9 @@ NightGuard-System/
 ### 1. Low-Light Enhancement — Anindya Saha Ani
 - **Deep Learning Ensemble:** Fuses four frozen base models (Zero-DCE, KinD, RetinexNet, Restormer Vision Transformer)
 - **Meta-Learner:** U-Net Fusion Engine for dynamic spatial feature weighting
-- **Optimized Inference:** PyTorch GPU inference with ONNX Runtime FP16 fallback for fast CPU computation
-- **Exposure Safety Check:** Fallback to CLAHE enhancement if the deep learning model over-exposes the image
-- **Custom Dataloading:** Dual-dataset capability (LOL dataset + SID RAW sensor data)
-- **Memory-Safe Evaluation:** Downscaling (max dimension 1080) and 256x256 patch-based inference for high-resolution images
+- **Optimized Inference:** ONNX Runtime FP16 on CPU, PyTorch on GPU — no GPU required
+- **Exposure Safety Check:** Auto-fallback to CLAHE if the DL model over-exposes the image
+- **Downscaling:** Images above 1080p are automatically downscaled before enhancement
 - **Deployment:** Gradio web interface (`app.py`) for drag-and-drop inference
 
 ### 2. Face Detection — Midhat Bin Shazzad
@@ -110,7 +114,7 @@ NightGuard-System/
 
 ### 3. Human Detection — Abhishek Kaisar Abhoy
 - YOLOv8n pretrained model (person class)
-- Gaussian blur (3x3 kernel) preprocessing for noise suppression
+- Gaussian blur preprocessing for noise suppression
 - Sobel edge detection for structural analysis
 - Interactive gamma correction slider for parameter tuning
 - Confidence improvement: 0.41 (raw) → 0.77 (enhanced)
@@ -118,6 +122,8 @@ NightGuard-System/
 ### 4. Vehicle Detection — Maisha Tabassum
 - YOLOv8n baseline + fine-tuned on ExDark dataset (2,320 vehicle images)
 - RT-DETR (transformer-based) fine-tuned for low-light vehicle detection
+- Smart model selection: runs both pretrained and fine-tuned, picks best result
+- Bounding box validation to filter bad detections
 - Vehicle classes: Car, Bus, Bicycle, Motorcycle
 - Best result: RT-DETR fine-tuned — 0.893 avg confidence
 
@@ -136,14 +142,16 @@ Dataset/
     └── People/        # 609 low-light images
 ```
 
-### Enhancement Module Datasets
+## Weights (Download Required)
 
-The enhancement module uses additional datasets for training:
+Some weight files are too large for GitHub. Download from Google Drive and place in the correct folders:
 
-*   **LOL (Low-Light) Dataset:** Standard RGB paired images (low-light vs. normal-light)
-*   **SID (See-in-the-Dark) Dataset:** RAW sensor data (`.ARW` / `.RAF`) with short/long exposure pairs
+| Folder | Contents | Download |
+|--------|----------|----------|
+| `onnx_weights/` | ONNX ensemble model for fast CPU inference | [Google Drive](https://drive.google.com/drive/folders/1pRGWh1ckUeqWEAiR02CNyIGJtGIrDiZG?usp=sharing) |
+| `modules/enhancement/weights/` | Pretrained base model weights + U-Net fusion | [Google Drive](https://drive.google.com/drive/folders/1pRGWh1ckUeqWEAiR02CNyIGJtGIrDiZG?usp=sharing) |
 
-**Enhancement Datasets & Weights:** [Google Drive Link](https://drive.google.com/drive/folders/1pRGWh1ckUeqWEAiR02CNyIGJtGIrDiZG?usp=sharing)
+> **Note:** `maisha_weights/` (vehicle detection) and `modules/face_detection/yolov8n-face.pt` are already included in the repo. `yolov8n.pt` auto-downloads on first run.
 
 ## Setup
 
@@ -152,29 +160,30 @@ The enhancement module uses additional datasets for training:
 git clone https://github.com/AbhishekKaisar/NightGuard-System.git
 cd NightGuard-System
 
-# Create virtual environment
-python -m venv venv
+# Create virtual environment (optional but recommended)
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install all dependencies
 pip install -r requirements.txt
 
-# For the enhancement module (requires PyTorch + GPU):
-pip install -r modules/enhancement/requirements.txt
+# Download weights from Google Drive (see Weights section above)
+# Place onnx_weights/ and modules/enhancement/weights/ in the project root
+
+# Run the pipeline
+python3 main_pipeline.py --input samples/x1080.jpg --output results/output.jpg
 ```
 
 ## Tech Stack
 
-- **Deep Learning:** PyTorch, Ultralytics YOLOv8, RT-DETR, Restormer, RetinexNet, Zero-DCE, KinD, ONNX Runtime
+- **Deep Learning:** PyTorch, Ultralytics YOLOv8, RT-DETR, Restormer, RetinexNet, Zero-DCE, KinD
+- **Optimized Inference:** ONNX Runtime (FP16 for CPU)
 - **Computer Vision:** OpenCV
 - **Deployment:** Gradio
 - **Data Processing:** rawpy, NumPy, Pandas
 - **Languages:** Python 3.8+
-- **Environment:** Local GPU / Google Colab
+- **Environment:** CPU (ONNX) / GPU (PyTorch) / Google Colab
 
 ## License
 
 This project is developed for academic purposes as part of the CSE468 course at North South University.
-
-rposes as part of the CSE468 course at North South University.
-
