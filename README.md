@@ -36,6 +36,8 @@ Raw CCTV Frame (Low-Light)
    (Bounding Boxes, Labels, Confidence Scores)
 ```
 
+**[View Project Presentation](https://gamma.app/docs/NightGuard-A-RealTime-MultiClass-Object-Detection-System-for-LowL-2hfoz142lc5yf83?mode=present#card-aqk5f8iw3bf5loq)**
+
 ---
 
 ## Quick Start
