@@ -1,0 +1,301 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{NightGuard: A Real-Time Multi-Class Object Detection System for Low-Light CCTV Surveillance}
+
+\author{
+\IEEEauthorblockN{Anindya Saha Ani}
+\IEEEauthorblockA{\textit{Dept. of Electrical and Computer Engineering}\\
+North South University\\
+ID: 2221105042}
+\and
+\IEEEauthorblockN{Abhishek Kaisar Abhoy}
+\IEEEauthorblockA{\textit{Dept. of Electrical and Computer Engineering}\\
+North South University\\
+ID: 2221140042}
+\and
+\IEEEauthorblockN{Midhat Bin Shazzad}
+\IEEEauthorblockA{\textit{Dept. of Electrical and Computer Engineering}\\
+North South University\\
+ID: 2222560642}
+\and
+\IEEEauthorblockN{Maisha Tabassum}
+\IEEEauthorblockA{\textit{Dept. of Electrical and Computer Engineering}\\
+North South University\\
+ID: 2222728042}
+}
+
+\maketitle
+
+\begin{abstract}
+Nighttime CCTV surveillance suffers from severely degraded detection performance due to low contrast, high sensor noise, and poor illumination. This paper presents NightGuard, a modular multi-class object detection pipeline specifically designed for low-light conditions. The system employs a two-stage architecture: (1) a deep learning enhancement ensemble that fuses four state-of-the-art models (Zero-DCE, KinD, RetinexNet, and Restormer) through a trainable U-Net meta-learner, and (2) parallel detection modules for faces (YOLOv8n-face), humans (YOLOv8n), and vehicles (fine-tuned YOLOv8n and RT-DETR). The enhancement stage improves human detection confidence from 0.41 to 0.82, face detection from 0.42 to 0.90, and vehicle detection from 0.557 to 0.893. The pipeline includes an ONNX Runtime FP16 export for efficient CPU inference and an automatic CLAHE fallback for over-exposed outputs. Evaluated on the ExDark dataset and real-world CCTV footage, NightGuard demonstrates robust multi-class detection in challenging nighttime scenarios.
+\end{abstract}
+
+\begin{IEEEkeywords}
+low-light enhancement, object detection, CCTV surveillance, YOLOv8, deep learning ensemble, image enhancement, ONNX inference
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+Video surveillance systems are fundamental to public safety infrastructure, with millions of CCTV cameras deployed worldwide. However, a significant portion of criminal activity occurs during nighttime hours, precisely when camera performance degrades most severely. Low-light conditions introduce three primary challenges: reduced contrast between objects and backgrounds, amplified sensor noise, and color distortion \cite{b1}.
+
+Standard object detection models such as YOLO \cite{b2} and RT-DETR \cite{b3} are predominantly trained on well-lit datasets (e.g., COCO \cite{b4}) and exhibit substantial performance degradation when applied to nighttime imagery. Detection confidence scores can drop below usable thresholds, rendering the surveillance system ineffective.
+
+NightGuard addresses this gap by implementing a two-stage pipeline: first enhancing the low-light image using a deep learning ensemble, then performing parallel detection for three object classes critical to surveillance---faces, humans, and vehicles. The system is designed for practical deployment with ONNX Runtime optimization for CPU inference and automatic fallback mechanisms for robustness.
+
+The contributions of this work are:
+\begin{itemize}
+\item A deep learning ensemble combining four complementary enhancement models with a U-Net fusion engine for low-light image restoration.
+\item A modular detection pipeline integrating face, human, and vehicle detection with smart model selection and bounding box validation.
+\item ONNX FP16 export and automatic CLAHE fallback for robust deployment across GPU and CPU environments.
+\item Comprehensive evaluation on the ExDark dataset \cite{b5} and real-world CCTV footage demonstrating significant confidence improvements across all detection tasks.
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Low-Light Image Enhancement}
+
+Traditional approaches to low-light enhancement include histogram equalization and its adaptive variant CLAHE \cite{b6}, gamma correction, and Retinex-based decomposition \cite{b7}. While computationally efficient, these methods often amplify noise or produce unnatural color artifacts.
+
+Deep learning approaches have shown superior performance. Zero-DCE \cite{b8} formulates enhancement as a curve estimation problem, learning image-specific tonal curves without paired training data. KinD \cite{b9} employs Retinex-inspired decomposition to separately handle illumination and reflectance. RetinexNet \cite{b10} specializes in illumination mapping while preserving structural edges. Restormer \cite{b11} leverages Vision Transformers to capture global context for image restoration tasks.
+
+\subsection{Object Detection in Low-Light}
+
+The YOLO family \cite{b2} remains the dominant real-time object detection framework, with YOLOv8 achieving state-of-the-art speed-accuracy trade-offs. RT-DETR \cite{b3} introduces transformer-based detection with hybrid encoders, showing strong performance on varied object scales. The ExDark dataset \cite{b5} provides a benchmark specifically designed for evaluating detection in exclusively dark environments, containing 7,363 images across 12 object categories.
+
+Previous work has explored enhancement-then-detection pipelines, but most focus on a single detection task. NightGuard extends this paradigm to simultaneous multi-class detection with smart model selection.
+
+\section{Methodology}
+
+\subsection{System Architecture}
+
+NightGuard implements a sequential two-stage architecture. Stage 1 enhances the raw low-light input frame. Stage 2 performs parallel detection across three modules operating on the enhanced frame. The results are fused and visualized with color-coded bounding boxes. Fig.~\ref{fig:architecture} illustrates the complete pipeline.
+
+\begin{figure}[htbp]
+\centerline{\fbox{\parbox{0.9\columnwidth}{\centering
+\small
+\textbf{Raw Low-Light Frame} \\
+$\downarrow$ \\
+\textbf{Stage 1: Enhancement} \\
+(DL Ensemble / CLAHE Fallback) \\
+$\downarrow$ Enhanced Frame $\downarrow$ \\
+\begin{tabular}{c|c|c}
+Face Det. & Human Det. & Vehicle Det. \\
+YOLOv8n-face & YOLOv8n & YOLOv8n (FT) \\
+\end{tabular} \\
+$\downarrow$ \\
+\textbf{Fused Detection Output}
+}}}
+\caption{NightGuard pipeline architecture. The enhanced frame is processed by three parallel detection modules, and results are fused into a single annotated output.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Stage 1: Low-Light Enhancement}
+
+The enhancement module employs a deep learning ensemble architecture consisting of two sub-stages: parallel feature extraction and dynamic spatial fusion.
+
+\subsubsection{Parallel Feature Extractors}
+
+Four pre-trained, frozen neural networks process the input image independently:
+
+\begin{itemize}
+\item \textbf{Zero-DCE} \cite{b8}: Estimates image-specific tonal curves for dynamic range adjustment without overexposing well-lit regions.
+\item \textbf{KinD} \cite{b9}: Decomposes the image into illumination and reflectance components using Retinex-based principles, aggressively suppressing color noise.
+\item \textbf{RetinexNet} \cite{b10}: Performs detailed illumination mapping while preserving structural edges during brightening.
+\item \textbf{Restormer} \cite{b11}: A Vision Transformer utilizing BiasFree LayerNorm to capture long-range global context and maintain color constancy.
+\end{itemize}
+
+\subsubsection{U-Net Fusion Engine}
+
+Each base model produces a 3-channel RGB output. These four outputs are concatenated into a 12-channel feature tensor and processed by a U-Net fusion network. The U-Net acts as a trainable meta-learner, performing pixel-wise spatial feature weighting to determine which base model provides the most accurate restoration at each spatial location. The architecture follows an encoder-decoder structure: $12 \rightarrow 64 \rightarrow 128 \rightarrow 256 \rightarrow 512 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 3$ channels with skip connections and channel/spatial attention modules.
+
+The fusion model is trained using a hybrid loss function:
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{L1} + \lambda \cdot \mathcal{L}_{perceptual}
+\label{eq:loss}
+\end{equation}
+where $\mathcal{L}_{L1}$ ensures structural integrity and $\mathcal{L}_{perceptual}$ extracts VGG16 feature maps to preserve natural visual fidelity.
+
+\subsubsection{Patch-Based Inference}
+
+High-resolution images (e.g., 4K CCTV footage) exceed GPU memory during the forward pass. The pipeline implements patch-based inference: images are divided into $256 \times 256$ overlapping tiles with 32-pixel overlap. Each patch is enhanced independently, then blended using a linearly decaying weight map at borders to prevent visible seams. Images exceeding 1080 pixels in maximum dimension are proportionally downscaled prior to processing.
+
+\subsubsection{ONNX Optimization and CLAHE Fallback}
+
+For CPU deployment, the ensemble is exported to ONNX format with FP16 quantization, providing 3--5$\times$ faster inference compared to native PyTorch execution. When ONNX weights are available, the pipeline skips loading the heavy PyTorch models entirely.
+
+An exposure safety check monitors the output: if the mean grayscale intensity exceeds 200 (on a 0--255 scale), indicating over-exposure, the system automatically falls back to a classical CLAHE enhancement pipeline (denoising, CLAHE on the LAB L-channel, and gamma correction with $\gamma = 0.7$).
+
+\subsection{Stage 2a: Face Detection}
+
+Face detection employs YOLOv8 Nano with specialized face detection weights. A dual-input smart selector runs inference on both the original and enhanced images, calculates the average confidence for each set, applies a 1.05$\times$ bias toward the enhanced result, and selects the higher-confidence output. The confidence threshold is set to 0.3 to accommodate the smaller scale of facial features.
+
+\subsection{Stage 2b: Human Detection}
+
+Human detection uses YOLOv8 Nano pre-trained on COCO, filtered to class 0 (person) with a confidence threshold of 0.4. A 5$\times$5 Gaussian blur kernel is applied to the enhanced image before detection to suppress residual high-frequency noise. This preprocessing step reduces false positives caused by reflective surfaces and car windows being misidentified as human figures.
+
+The Gaussian convolution is defined as:
+\begin{equation}
+G(x,y) = \frac{1}{2\pi\sigma^2} e^{-\frac{x^2+y^2}{2\sigma^2}}
+\label{eq:gaussian}
+\end{equation}
+
+Classical analysis using Sobel edge detection provides complementary structural visualization by computing spatial gradients $G_x$ and $G_y$ and the gradient magnitude $|G| = \sqrt{G_x^2 + G_y^2}$.
+
+\subsection{Stage 2c: Vehicle Detection}
+
+Vehicle detection implements a dual-model strategy with smart selection. Both a pre-trained YOLOv8n (COCO classes: car, motorcycle, bus, truck) and a fine-tuned YOLOv8n (trained on 2,320 ExDark vehicle images for 20 epochs) are executed on the enhanced frame. Detections from each model are independently validated: bounding boxes covering more than 60\% of the image area are discarded as erroneous. The model producing more valid detections is selected for the final output.
+
+This approach addresses the domain gap between general COCO training data and low-light ExDark imagery while preventing full-image bounding boxes that the fine-tuned model occasionally produces on out-of-distribution inputs.
+
+\subsection{Stage 3: Fusion and Visualization}
+
+Detections from all three modules are aggregated into a unified list. Color-coded bounding boxes are rendered on the enhanced image: green for faces, cyan for humans, and red for vehicles. Each box includes a filled label with the class name and confidence score.
+
+\section{Experimental Setup}
+
+\subsection{Datasets}
+
+\textbf{ExDark Dataset} \cite{b5}: 7,363 low-light images across 12 object categories. The People subset (609 images) was used for human detection evaluation, and the vehicle subset (Car, Bus, Bicycle, Motorbike --- 2,320 images) for vehicle detection fine-tuning.
+
+\textbf{Enhancement Training}: The LOL dataset (paired low/normal-light RGB images) and the SID dataset (RAW sensor data with short/long exposure pairs) were used for training the fusion U-Net.
+
+\textbf{Real-World CCTV}: Additional evaluation was performed on real nighttime CCTV footage and infrared camera images to assess generalization.
+
+\subsection{Implementation Details}
+
+The system was implemented in Python 3.8+ using PyTorch for the enhancement ensemble, Ultralytics for YOLOv8/RT-DETR inference, and OpenCV for image processing. ONNX Runtime with FP16 quantization was used for optimized CPU inference. Training of the U-Net fusion engine used Adam optimizer with learning rate $1 \times 10^{-4}$ and batch size 4.
+
+\section{Results and Discussion}
+
+\subsection{Enhancement Impact on Detection}
+
+Table~\ref{tab:enhancement} summarizes the impact of the enhancement stage on detection confidence across all three modules.
+
+\begin{table}[htbp]
+\caption{Detection Confidence Before and After Enhancement}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Module} & \textbf{Raw (Low-Light)} & \textbf{Enhanced} \\
+\midrule
+Human Detection & 0.41 & 0.73 -- 0.82 \\
+Face Detection & 0.42 -- 0.65 & 0.70 -- 0.90 \\
+Vehicle Detection & 0.557 & 0.88 -- 0.93 \\
+\bottomrule
+\end{tabular}
+\label{tab:enhancement}
+\end{center}
+\end{table}
+
+\subsection{Vehicle Detection Model Comparison}
+
+Table~\ref{tab:vehicle} compares vehicle detection performance across different model configurations.
+
+\begin{table}[htbp]
+\caption{Vehicle Detection Model Performance}
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+\textbf{Model} & \textbf{Avg. Confidence} \\
+\midrule
+Pretrained YOLOv8n (baseline) & 0.557 \\
+Fine-tuned YOLOv8n (ExDark) & 0.870 \\
+RT-DETR baseline & 0.614 \\
+RT-DETR fine-tuned (ExDark) & 0.893 \\
+\bottomrule
+\end{tabular}
+\label{tab:vehicle}
+\end{center}
+\end{table}
+
+\subsection{End-to-End Detection Results}
+
+Table~\ref{tab:e2e} presents end-to-end detection results on diverse test images.
+
+\begin{table}[htbp]
+\caption{End-to-End Detection Results on Test Images}
+\begin{center}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Image} & \textbf{Detection} & \textbf{Conf.} & \textbf{Correct} \\
+\midrule
+\multirow{4}{*}{x1080 (CCTV)} & Human & 0.83 & Yes \\
+ & Car & 0.88 & Yes \\
+ & Car & 0.84 & Yes \\
+ & Car & 0.65 & Yes \\
+\midrule
+\multirow{2}{*}{sample-face (IR)} & Face & 0.75 & Yes \\
+ & Human & 0.91 & Yes \\
+\midrule
+\multirow{2}{*}{cctvsample (Indoor)} & Face & 0.78 & Yes \\
+ & Human & 0.93 & Yes \\
+\midrule
+\multirow{4}{*}{ExDark 06281} & Human & 0.73 & Yes \\
+ & Human & 0.70 & Yes \\
+ & Human & 0.58 & Yes \\
+ & Human & 0.45 & Yes \\
+\midrule
+\multirow{3}{*}{ExDark 06282} & Car & 0.93 & Yes \\
+ & Car & 0.88 & Yes \\
+ & Car & 0.70 & Yes \\
+\bottomrule
+\end{tabular}
+\label{tab:e2e}
+\end{center}
+\end{table}
+
+\subsection{Gaussian Blur Analysis}
+
+Ablation experiments revealed that Gaussian blur preprocessing is critical for human detection reliability. Without blur, the system produced false positive detections on reflective car surfaces. With a 5$\times$5 kernel, false positives were eliminated at the cost of a marginal confidence reduction (0.82 to 0.73 on some images).
+
+\subsection{Enhancement Fallback Analysis}
+
+The CLAHE fallback mechanism proved essential for grayscale infrared CCTV footage, where the deep learning ensemble---trained primarily on color images from LOL and SID datasets---produced over-exposed outputs. On such images, detection confidence dropped from 0.82 (CLAHE) to 0.66 (ensemble), and vehicle detections decreased from 3 to 1. The automatic fallback restored full detection performance.
+
+\subsection{Known Limitations}
+
+\begin{itemize}
+\item \textbf{Heavily occluded persons}: YOLOv8 Nano's limited feature capacity fails to detect persons occluded by vehicles or backlit by headlights.
+\item \textbf{Top-down camera angles}: Vehicle detection accuracy degrades for overhead views, as training data consists predominantly of side and front views.
+\item \textbf{Domain gap}: The fine-tuned vehicle model occasionally produces full-image bounding boxes on images outside its ExDark training distribution, mitigated by the 60\% area filter.
+\item \textbf{IR image enhancement}: The deep learning ensemble does not generalize well to grayscale infrared imagery, necessitating the CLAHE fallback.
+\end{itemize}
+
+\section{Conclusion}
+
+NightGuard demonstrates that a well-designed enhancement-then-detection pipeline can significantly improve multi-class object detection in low-light CCTV surveillance. The deep learning ensemble achieves substantial confidence improvements: 100\% for human detection (0.41 to 0.82), 38--67\% for face detection, and 56--60\% for vehicle detection. The modular architecture, smart model selection, bounding box validation, and automatic fallback mechanisms ensure robust performance across diverse nighttime scenarios. ONNX Runtime export enables practical deployment on CPU-only devices without requiring GPU hardware.
+
+Future work includes expanding the enhancement training data to include infrared and grayscale imagery, exploring YOLOv8-Large for improved detection of occluded subjects, and integrating real-time video processing for live CCTV feeds.
+
+\section*{Acknowledgment}
+
+This project was conducted under the supervision of Dr.~Mohammad Shifat-E-Rabbi, Assistant Professor, Department of Electrical and Computer Engineering, North South University. The authors acknowledge the creators of the ExDark, LOL, and SID datasets, and the developers of the Zero-DCE, KinD, RetinexNet, and Restormer architectures.
+
+\begin{thebibliography}{00}
+\bibitem{b1} C. Li, C. Guo, L. Han, J. Jiang, M. Cheng, J. Gu, and C. C. Loy, ``Low-light image and video enhancement using deep learning: A survey,'' \textit{IEEE Trans. Pattern Anal. Mach. Intell.}, vol. 44, no. 12, pp. 9396--9416, 2022.
+\bibitem{b2} G. Jocher, A. Chaurasia, and J. Qiu, ``Ultralytics YOLO,'' 2023. [Online]. Available: https://github.com/ultralytics/ultralytics
+\bibitem{b3} Y. Zhao, W. Lv, S. Xu, J. Wei, G. Wang, Q. Dang, Y. Liu, and J. Chen, ``DETRs beat YOLOs on real-time object detection,'' in \textit{Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2024, pp. 16965--16974.
+\bibitem{b4} T.-Y. Lin, M. Maire, S. Belongie, J. Hays, P. Perona, D. Ramanan, P. Dollar, and C. L. Zitnick, ``Microsoft COCO: Common objects in context,'' in \textit{Proc. Eur. Conf. Comput. Vis. (ECCV)}, 2014, pp. 740--755.
+\bibitem{b5} Y. P. Loh and C. S. Chan, ``Getting to know low-light images with the Exclusively Dark dataset,'' \textit{Comput. Vis. Image Underst.}, vol. 178, pp. 30--42, 2019.
+\bibitem{b6} K. Zuiderveld, ``Contrast limited adaptive histogram equalization,'' in \textit{Graphics Gems IV}, Academic Press, 1994, pp. 474--485.
+\bibitem{b7} E. H. Land, ``The Retinex theory of color vision,'' \textit{Sci. Amer.}, vol. 237, no. 6, pp. 108--128, 1977.
+\bibitem{b8} C. Guo, C. Li, J. Guo, C. C. Loy, J. Hou, S. Kwong, and R. Cong, ``Zero-reference deep curve estimation for low-light image enhancement,'' in \textit{Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2020, pp. 1780--1789.
+\bibitem{b9} Y. Zhang, J. Zhang, and X. Guo, ``Kindling the darkness: A practical low-light image enhancer,'' in \textit{Proc. ACM Int. Conf. Multimedia}, 2019, pp. 1632--1640.
+\bibitem{b10} C. Wei, W. Wang, W. Yang, and J. Liu, ``Deep Retinex decomposition for low-light enhancement,'' in \textit{Proc. Brit. Mach. Vis. Conf. (BMVC)}, 2018.
+\bibitem{b11} S. W. Zamir, A. Arora, S. Khan, M. Hayat, F. S. Khan, and M.-H. Yang, ``Restormer: Efficient transformer for high-resolution image restoration,'' in \textit{Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2022, pp. 5728--5739.
+\end{thebibliography}
+
+\end{document}

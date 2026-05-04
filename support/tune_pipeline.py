@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 # Import the core functions from the main pipeline
-from main_pipeline import (
+from main import (
     enhance_image_with_ensemble,
     detect_faces,
     detect_humans,

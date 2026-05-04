@@ -36,7 +36,7 @@ Raw CCTV Frame (Low-Light)
    (Bounding Boxes, Labels, Confidence Scores)
 ```
 
-**[View Project Presentation](https://gamma.app/docs/NightGuard-A-RealTime-MultiClass-Object-Detection-System-for-LowL-2hfoz142lc5yf83?mode=present#card-aqk5f8iw3bf5loq)**
+**[View Project Presentation](https://gamma.app/docs/NightGuard-A-RealTime-MultiClass-Object-Detection-System-for-LowL-2hfoz142lc5yf83?mode=present#card-y7dxb618h35dni2)**
 
 ---
 
@@ -49,14 +49,14 @@ cd NightGuard-System
 pip install -r requirements.txt
 
 # 2. Download required weights (not included in repo due to size)
-#    - onnx_weights/    → from Google Drive (see Weights section below)
-#    - maisha_weights/  → included in repo
+#    - support/onnx_weights/    → from Google Drive (see Weights section below)
+#    - support/maisha_weights/  → included in repo
 
 # 3. Run the full pipeline on a sample image
-python3 main_pipeline.py --input samples/x1080.jpg --output results/output.jpg
+python3 main.py --input data/x1080.jpg --output results/output.jpg
 ```
 
-Or open `notebooks/NightGuard_Demo.ipynb` in Google Colab for an interactive demo.
+Or open `support/notebooks/NightGuard_Demo.ipynb` in Google Colab for an interactive demo.
 
 ---
 
@@ -64,10 +64,10 @@ Or open `notebooks/NightGuard_Demo.ipynb` in Google Colab for an interactive dem
 
 | Name | ID | Role | Module Folder |
 |------|----|------|---------------|
-| Anindya Saha Ani | 2221105042 | Low-Light Enhancement Lead | `modules/enhancement/` |
-| Midhat Bin Shazzad | 2222560642 | Face Detection Lead | `modules/face_detection/` |
-| Abhishek Kaisar Abhoy | 2221140042 | Human Detection Lead | `modules/human_detection/` |
-| Maisha Tabassum | 2222728042 | Vehicle Detection Lead | `modules/vehicle_detection/` |
+| Anindya Saha Ani | 2221105042 | Low-Light Enhancement Lead | `support/modules/enhancement/` |
+| Midhat Bin Shazzad | 2222560642 | Face Detection Lead | `support/modules/face_detection/` |
+| Abhishek Kaisar Abhoy | 2221140042 | Human Detection Lead | `support/modules/human_detection/` |
+| Maisha Tabassum | 2222728042 | Vehicle Detection Lead | `support/modules/vehicle_detection/` |
 
 ---
 
@@ -75,27 +75,24 @@ Or open `notebooks/NightGuard_Demo.ipynb` in Google Colab for an interactive dem
 
 ```
 NightGuard-System/
-├── main_pipeline.py        # Integrated detection pipeline
-├── export_onnx.py          # Script to export PyTorch ensemble to ONNX
-├── tune_pipeline.py        # Pipeline hyperparameter tuning
-├── modules/
-│   ├── enhancement/        # Anindya — Deep learning ensemble
-│   ├── face_detection/     # Midhat — YOLOv8n-face detection
-│   ├── human_detection/    # Abhishek — YOLOv8n human detection
-│   └── vehicle_detection/  # Maisha — YOLOv8n + RT-DETR vehicle detection
-├── notebooks/
-│   ├── NightGuard_Demo.ipynb           # Full pipeline demo
-│   ├── Human_Detection_Module.ipynb
-│   ├── FaceDetection.ipynb
-│   ├── vehicle_detection_yolo_experiments.ipynb
-│   ├── vehicle_detection_RT_DETR.ipynb
-│   └── vehicle_detection_first_report.ipynb
-├── maisha_weights/         # Fine-tuned vehicle detection weights (in repo)
-├── onnx_weights/           # ONNX models for fast CPU inference (download separately)
-├── samples/                # Sample test images
+├── main.py                 # Main pipeline — run this to detect
+├── README.md               # Project documentation
+├── requirements.txt        # Python dependencies
+├── data/                   # Sample test images (datasets)
+├── support/                # All supporting code and models
+│   ├── modules/
+│   │   ├── enhancement/    # Anindya — Deep learning ensemble
+│   │   ├── face_detection/ # Midhat — YOLOv8n-face detection
+│   │   ├── human_detection/# Abhishek — YOLOv8n human detection
+│   │   └── vehicle_detection/ # Maisha — YOLOv8n + RT-DETR
+│   ├── notebooks/          # Jupyter notebooks
+│   ├── maisha_weights/     # Fine-tuned vehicle detection weights
+│   ├── onnx_weights/       # ONNX models for fast CPU inference
+│   ├── export_onnx.py      # ONNX export script
+│   └── tune_pipeline.py    # Hyperparameter tuning script
+├── others/                 # Presentations, reports, demo video
 ├── results/                # Output images and evaluation metrics
-├── docs/                   # Project documentation & reports
-└── requirements.txt        # Python dependencies
+└── docs/                   # Technical documentation
 ```
 
 ## Modules
@@ -173,7 +170,7 @@ pip install -r requirements.txt
 # Place onnx_weights/ and modules/enhancement/weights/ in the project root
 
 # Run the pipeline
-python3 main_pipeline.py --input samples/x1080.jpg --output results/output.jpg
+python3 main.py --input samples/x1080.jpg --output results/output.jpg
 ```
 
 ## Tech Stack

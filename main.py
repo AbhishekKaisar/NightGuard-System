@@ -9,7 +9,7 @@ Integrates all four modules:
   4. Vehicle Detection (YOLOv8n)
 
 Usage:
-  python main_pipeline.py --input samples/test.jpg --output results/output.jpg
+  python main.py --input data/x1080.jpg --output results/output.jpg
 """
 
 import argparse
@@ -23,6 +23,9 @@ from PIL import Image
 from ultralytics import YOLO
 import onnxruntime as ort
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "support"))
+
 from modules.enhancement.models.ensemble import LowLightEnsemble, load_base_weights
 from modules.enhancement.models.base_models import ZeroDCE, KinD, RetinexNet, Restormer
 from modules.enhancement.utils.helpers import _resolve_path, _resolve_weight_paths
@@ -35,7 +38,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Load ONNX session globally for CPU inference
 onnx_session = None
 if not torch.cuda.is_available():
-    onnx_path = "onnx_weights/ensemble_fp16.onnx"
+    onnx_path = os.path.join(os.path.dirname(__file__), "support", "onnx_weights", "ensemble_fp16.onnx")
     if os.path.exists(onnx_path):
         onnx_session = ort.InferenceSession(onnx_path)
     else:
@@ -51,7 +54,7 @@ if onnx_session is None:
 
     ensemble = LowLightEnsemble(dce, kind, retinex, restormer).to(device)
 
-    project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules", "enhancement")
+    project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "support", "modules", "enhancement")
     config_path = os.path.join(project_root, "configs", "config.yaml")
 
     if os.path.exists(config_path):
@@ -78,10 +81,10 @@ if onnx_session is None:
 print("Loading YOLO detection models...")
 yolo_general = YOLO("yolov8n.pt")
 
-face_weight = os.path.join(os.path.dirname(__file__), "modules", "face_detection", "yolov8n-face.pt")
+face_weight = os.path.join(os.path.dirname(__file__), "support", "modules", "face_detection", "yolov8n-face.pt")
 yolo_face = YOLO(face_weight) if os.path.exists(face_weight) else yolo_general
 
-vehicle_finetuned = os.path.join(os.path.dirname(__file__), "maisha_weights", "yolo_finetune_exp2_best.pt")
+vehicle_finetuned = os.path.join(os.path.dirname(__file__), "support", "maisha_weights", "yolo_finetune_exp2_best.pt")
 yolo_vehicle_ft = YOLO(vehicle_finetuned) if os.path.exists(vehicle_finetuned) else None
 print("All models loaded successfully.")
 

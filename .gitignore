@@ -1,8 +1,6 @@
 # Dataset (too large for GitHub)
 Dataset/
-data/
 weights/
-onnx_weights/
 # Python
 __pycache__/
 *.py[cod]
@@ -35,8 +33,9 @@ Thumbs.db
 *.h5
 
 # Allow specific weights needed for the pipeline
-!maisha_weights/*.pt
-!modules/face_detection/yolov8n-face.pt
+!support/maisha_weights/*.pt
+!support/modules/face_detection/yolov8n-face.pt
 
 # Logs
 *.log
+support/onnx_weights/
